@@ -1,0 +1,7 @@
+
+{
+	// Keep the .git folder visible in the VS Code Explorer
+	"files.exclude": {
+		"**/.git": false
+	}
+}

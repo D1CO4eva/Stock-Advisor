@@ -1,0 +1,96 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* Dark Mode / Fintech Theme Colors - H S% L% */
+  --color-background: 222 47% 11%; /* Deep Navy */
+  --color-foreground: 210 40% 98%; /* Off White */
+
+  --color-card: 217 33% 17%; /* Slightly lighter navy for cards */
+  --color-card-foreground: 210 40% 98%;
+
+  --color-popover: 222 47% 11%;
+  --color-popover-foreground: 210 40% 98%;
+
+  --color-primary: 217 91% 60%; /* Electric Blue */
+  --color-primary-foreground: 222 47% 11%;
+
+  --color-secondary: 215 25% 27%; /* Muted Blue/Slate */
+  --color-secondary-foreground: 210 40% 98%;
+
+  --color-muted: 215 25% 27%;
+  --color-muted-foreground: 215 20% 65%;
+
+  --color-accent: 217 91% 60%;
+  --color-accent-foreground: 222 47% 11%;
+
+  --color-destructive: 0 84% 60%; /* Red for Sell/Loss */
+  --color-destructive-foreground: 210 40% 98%;
+
+  --color-success: 142 71% 45%; /* Green for Buy/Profit */
+  --color-success-foreground: 210 40% 98%;
+
+  --color-border: 215 25% 27%;
+  --color-input: 215 25% 27%;
+  --color-ring: 217 91% 60%;
+
+  --color-chart-1: 217 91% 60%; /* Blue */
+  --color-chart-2: 142 71% 45%; /* Green */
+  --color-chart-3: 0 84% 60%;   /* Red */
+  --color-chart-4: 47 95% 55%;  /* Yellow */
+  --color-chart-5: 262 83% 58%; /* Purple */
+
+  --color-sidebar: 222 47% 11%;
+  --color-sidebar-foreground: 210 40% 98%;
+  --color-sidebar-primary: 217 91% 60%;
+  --color-sidebar-primary-foreground: 222 47% 11%;
+  --color-sidebar-accent: 215 25% 27%;
+  --color-sidebar-accent-foreground: 210 40% 98%;
+  --color-sidebar-border: 215 25% 27%;
+  --color-sidebar-ring: 217 91% 60%;
+
+  --font-sans: 'Inter', sans-serif;
+  --font-display: 'Outfit', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    background-image: radial-gradient(circle at 50% 0%, hsl(217, 91%, 60%, 0.1) 0%, transparent 50%);
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight;
+  }
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(215 25% 27%);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(215 25% 35%);
+}
