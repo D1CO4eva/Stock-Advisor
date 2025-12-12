@@ -1,12 +1,15 @@
 {
   "version": 2,
   "buildCommand": "npm run build",
-  "functions": {
-    "api/index.ts": {
-      "runtime": "nodejs20.x",
-      "includeFiles": "dist/**"
+  "builds": [
+    {
+      "src": "api/index.ts",
+      "use": "@vercel/node@5.5.15",
+      "config": {
+        "includeFiles": "dist/**"
+      }
     }
-  },
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.ts" },
     { "source": "/(.*)", "destination": "/api/index.ts" }
