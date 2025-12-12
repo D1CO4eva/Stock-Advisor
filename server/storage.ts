@@ -163,4 +163,18 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage(process.env.DATABASE_URL!);
+let storageInstance: IStorage | null = null;
+
+export function getStorage(): IStorage {
+  if (storageInstance) {
+    return storageInstance;
+  }
+
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error("DATABASE_URL is required to start the server");
+  }
+
+  storageInstance = new DatabaseStorage(connectionString);
+  return storageInstance;
+}
