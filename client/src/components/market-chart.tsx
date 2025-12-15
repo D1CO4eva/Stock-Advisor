@@ -2,7 +2,11 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tool
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MOCK_HISTORY_DATA } from "@/lib/mock-data";
 
-export default function MarketChart({ symbol }: { symbol: string }) {
+type HistoryPoint = { date: string; price: number };
+
+export default function MarketChart({ symbol, history }: { symbol: string; history?: HistoryPoint[] }) {
+  const data = history?.length ? history : MOCK_HISTORY_DATA;
+
   return (
     <Card className="border-border bg-card/50 backdrop-blur-sm shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -26,7 +30,7 @@ export default function MarketChart({ symbol }: { symbol: string }) {
       </CardHeader>
       <CardContent className="h-[300px] w-full pt-4">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={MOCK_HISTORY_DATA}>
+          <AreaChart data={data}>
             <defs>
               <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="hsl(217, 91%, 60%)" stopOpacity={0.3} />

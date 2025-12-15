@@ -10,12 +10,10 @@ export interface StockData {
   pc: number; // Previous close price
 }
 
-export async function fetchStockPrice(symbol: string, apiKey: string): Promise<StockData | null> {
-  if (!apiKey) return null;
-  
+export async function fetchStockPrice(symbol: string): Promise<StockData | null> {
   try {
     // Use server-side caching to reduce API calls
-    const data = await fetchStockDataCached(symbol, apiKey);
+    const data = await fetchStockDataCached(symbol);
     return data;
   } catch (error) {
     console.error(`Error fetching stock data for ${symbol}:`, error);

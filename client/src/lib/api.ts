@@ -68,8 +68,32 @@ export async function removeFromWatchlist(symbol: string): Promise<void> {
 }
 
 // Stock data with server-side caching
-export async function fetchStockDataCached(symbol: string, apiKey: string) {
-  const res = await fetch(`${API_BASE}/stock/${symbol}?apiKey=${encodeURIComponent(apiKey)}`);
+export async function fetchStockDataCached(symbol: string) {
+  const res = await fetch(`${API_BASE}/stock/${symbol}`);
   if (!res.ok) throw new Error("Failed to fetch stock data");
+  return res.json();
+}
+
+export async function getMarketOverview() {
+  const res = await fetch(`${API_BASE}/market/overview`);
+  if (!res.ok) throw new Error("Failed to fetch market overview");
+  return res.json();
+}
+
+export async function getMarketHistory(symbol: string) {
+  const res = await fetch(`${API_BASE}/market/history/${symbol}`);
+  if (!res.ok) throw new Error("Failed to fetch market history");
+  return res.json();
+}
+
+export async function getInsights() {
+  const res = await fetch(`${API_BASE}/insights`);
+  if (!res.ok) throw new Error("Failed to fetch insights");
+  return res.json();
+}
+
+export async function getNews(category = "general") {
+  const res = await fetch(`${API_BASE}/news?category=${encodeURIComponent(category)}`);
+  if (!res.ok) throw new Error("Failed to fetch news");
   return res.json();
 }

@@ -3,16 +3,12 @@ import { fetchStockPrice } from "@/lib/stock-api";
 import { STOCKS, Stock } from "@/lib/mock-data";
 
 export function useStockData() {
-  const apiKey = localStorage.getItem("finnhub_api_key");
-
   return useQuery({
-    queryKey: ["stocks", apiKey],
+    queryKey: ["stocks"],
     queryFn: async () => {
-      if (!apiKey) return STOCKS;
-
       const updatedStocks = await Promise.all(
         STOCKS.map(async (stock) => {
-          const liveData = await fetchStockPrice(stock.symbol, apiKey);
+          const liveData = await fetchStockPrice(stock.symbol);
           if (liveData) {
             return {
               ...stock,
@@ -29,6 +25,6 @@ export function useStockData() {
       
       return updatedStocks;
     },
-    refetchInterval: apiKey ? 30000 : false, // Poll every 30s if using real data
+    refetchInterval: 30000, // Poll every 30s for live data
   });
 }

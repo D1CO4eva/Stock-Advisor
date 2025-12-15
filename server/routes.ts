@@ -23,6 +23,30 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   const storage = getStorage();
+  const finnhubApiKey = process.env.FINNHUB_API_KEY;
+
+  async function fetchFinnhub(path: string, cacheKey?: string, maxAgeMinutes = 1) {
+    if (!finnhubApiKey) {
+      throw new Error("FINNHUB_API_KEY not configured");
+    }
+
+    if (cacheKey) {
+      const cached = await storage.getCachedStockData(cacheKey, maxAgeMinutes);
+      if (cached) return cached.data;
+    }
+
+    const url = `https://finnhub.io/api/v1${path}&token=${finnhubApiKey}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Finnhub request failed: ${response.status}`);
+    }
+    const data = await response.json();
+
+    if (cacheKey) {
+      await storage.setCachedStockData({ symbol: cacheKey, data: data as any });
+    }
+    return data;
+  }
 
   const stockLimiter = rateLimit({
     windowMs: 5 * 60 * 1000,
@@ -174,39 +198,114 @@ export async function registerRoutes(
   // Stock data proxy with caching
   app.get("/api/stock/:symbol", stockLimiter, async (req, res) => {
     const { symbol } = req.params;
-    const apiKey = process.env.FINNHUB_API_KEY;
-
-    if (!apiKey) {
-      return res.status(500).json({ error: "FINNHUB_API_KEY not configured" });
-    }
 
     try {
-      // Check cache first
-      const cached = await storage.getCachedStockData(symbol);
-      if (cached) {
-        return res.json(cached.data);
-      }
-
-      // Fetch from Finnhub
-      const response = await fetch(
-        `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${apiKey}`
-      );
-      
-      if (!response.ok) {
-        throw new Error("Failed to fetch stock data");
-      }
-
-      const data = await response.json();
-
-      // Cache the result
-      await storage.setCachedStockData({
-        symbol,
-        data: data as any,
-      });
-
+      const data = await fetchFinnhub(`/quote?symbol=${symbol}`, symbol, 1);
       res.json(data);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch stock data" });
+    }
+  });
+
+  // Market overview for a set of symbols
+  app.get("/api/market/overview", stockLimiter, async (_req, res) => {
+    try {
+      const symbols = [
+        "SPY",
+        "QQQ",
+        "DIA",
+        "IWM",
+        "NVDA",
+        "MSFT",
+        "AAPL",
+        "AMZN",
+        "META",
+        "GOOGL",
+        "TSLA",
+        "JPM",
+        "XOM",
+        "LLY",
+        "AVGO",
+      ];
+      const quotes = await Promise.all(
+        symbols.map(async (symbol) => {
+          const data = await fetchFinnhub(`/quote?symbol=${symbol}`, `overview:${symbol}`, 1);
+          return { symbol, ...data };
+        })
+      );
+      res.json(quotes);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch market overview" });
+    }
+  });
+
+  // Market history for charting
+  app.get("/api/market/history/:symbol", stockLimiter, async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const to = Math.floor(Date.now() / 1000);
+      const from = to - 60 * 60 * 24 * 30; // last 30 days
+      const cacheKey = `history:${symbol}`;
+      const data = await fetchFinnhub(
+        `/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}`,
+        cacheKey,
+        30 // cache for 30 minutes
+      );
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch history" });
+    }
+  });
+
+  // AI insights derived from market data (lightweight heuristic)
+  app.get("/api/insights", stockLimiter, async (_req, res) => {
+    try {
+      const symbols = ["NVDA", "MSFT", "AAPL"];
+      const quotes = await Promise.all(
+        symbols.map(async (symbol) => {
+          const data = await fetchFinnhub(`/quote?symbol=${symbol}`, `insight:${symbol}`, 5);
+          return { symbol, ...data };
+        })
+      );
+
+      const insights = quotes.map((q) => {
+        const momentum = q.dp ?? 0;
+        const tone =
+          momentum > 2 ? "Bullish momentum with rising volume signals continuation."
+          : momentum < -2 ? "Bearish pressure building; consider reducing exposure."
+          : "Range-bound; watch for breakout catalysts.";
+        return {
+          title: `${q.symbol} insight`,
+          sentiment: momentum > 1 ? "Positive" : momentum < -1 ? "Negative" : "Neutral",
+          detail: tone,
+          changePercent: momentum,
+        };
+      });
+
+      res.json({ updatedAt: new Date().toISOString(), insights });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch insights" });
+    }
+  });
+
+  // News & sentiment
+  app.get("/api/news", stockLimiter, async (req, res) => {
+    const category = (req.query.category as string) || "general";
+    try {
+      const cacheKey = `news:${category}`;
+      const data = await fetchFinnhub(`/news?category=${encodeURIComponent(category)}`, cacheKey, 30);
+      // Trim and normalize
+      const articles = (data as any[]).slice(0, 10).map((item) => ({
+        headline: item.headline,
+        summary: item.summary,
+        source: item.source,
+        url: item.url,
+        datetime: item.datetime,
+        image: item.image,
+      }));
+      res.json({ category, articles, updatedAt: new Date().toISOString() });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch news" });
     }
   });
 

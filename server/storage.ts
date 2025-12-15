@@ -34,7 +34,7 @@ export interface IStorage {
   removeFromPortfolio(id: number): Promise<void>;
 
   // API Cache operations
-  getCachedStockData(symbol: string): Promise<ApiCache | undefined>;
+  getCachedStockData(symbol: string, maxAgeMinutes?: number): Promise<ApiCache | undefined>;
   setCachedStockData(cache: InsertApiCache): Promise<ApiCache>;
 }
 
@@ -130,7 +130,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.portfolios.id, id));
   }
 
-  async getCachedStockData(symbol: string): Promise<ApiCache | undefined> {
+  async getCachedStockData(symbol: string, maxAgeMinutes = 1): Promise<ApiCache | undefined> {
     const [cache] = await this.db
       .select()
       .from(schema.apiCache)
@@ -140,7 +140,7 @@ export class DatabaseStorage implements IStorage {
     // Only return if cache is less than 1 minute old
     if (cache) {
       const ageInMinutes = (Date.now() - cache.cachedAt.getTime()) / 1000 / 60;
-      if (ageInMinutes < 1) {
+      if (ageInMinutes < maxAgeMinutes) {
         return cache;
       }
     }
