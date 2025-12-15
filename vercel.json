@@ -6,7 +6,11 @@
       "src": "api/index.ts",
       "use": "@vercel/node@5.5.15",
       "config": {
-        "includeFiles": "dist/**"
+        "includeFiles": [
+          "dist/**",
+          "server/**",
+          "shared/**"
+        ]
       }
     }
   ],
