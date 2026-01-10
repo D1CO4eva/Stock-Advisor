@@ -3,6 +3,11 @@ import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
 dotenv.config();
 
+// Normalize AI key env names
+if (!process.env.KIMI_API_KEY && process.env.KIMI_K2_API_KEY) {
+  process.env.KIMI_API_KEY = process.env.KIMI_K2_API_KEY;
+}
+
 import { createApp } from "./app";
 
 (async () => {

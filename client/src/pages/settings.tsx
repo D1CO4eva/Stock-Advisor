@@ -4,16 +4,19 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Key, ShieldCheck, AlertCircle } from "lucide-react";
+import { Key, ShieldCheck, AlertCircle, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Settings() {
   const [apiKey, setApiKey] = useState("");
+  const [kimiKey, setKimiKey] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
     const storedKey = localStorage.getItem("finnhub_api_key");
     if (storedKey) setApiKey(storedKey);
+    const storedKimi = localStorage.getItem("kimi_api_key");
+    if (storedKimi) setKimiKey(storedKimi);
   }, []);
 
   const handleSave = () => {
@@ -27,9 +30,14 @@ export default function Settings() {
     }
 
     localStorage.setItem("finnhub_api_key", apiKey.trim());
+    if (kimiKey.trim()) {
+      localStorage.setItem("kimi_api_key", kimiKey.trim());
+    } else {
+      localStorage.removeItem("kimi_api_key");
+    }
     toast({
       title: "Settings Saved",
-      description: "API Key has been updated securely.",
+      description: "Keys have been updated.",
     });
   };
 
@@ -75,6 +83,27 @@ export default function Settings() {
                 <p className="text-xs text-muted-foreground">
                   This application runs entirely in your browser. When you provide an API key, it is used directly from your client to fetch data from Finnhub.
                 </p>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-4 border-t border-border/50">
+              <Label htmlFor="kimi-key">Kimi API Key</Label>
+              <Input
+                id="kimi-key"
+                type="password"
+                placeholder="Enter your Kimi API key"
+                value={kimiKey}
+                onChange={(e) => setKimiKey(e.target.value)}
+                className="font-mono bg-background"
+              />
+              <p className="text-xs text-muted-foreground">
+                Used for AI chat fallback when the server key is unavailable. Stored locally in your browser.
+              </p>
+              <div className="rounded-lg bg-secondary/10 border border-secondary/30 p-3 flex gap-2 text-xs text-muted-foreground">
+                <Sparkles className="w-4 h-4 text-secondary flex-shrink-0" />
+                <span>
+                  If chat fails due to missing server config, this key lets the client call Kimi directly. Keep it private.
+                </span>
               </div>
             </div>
           </CardContent>

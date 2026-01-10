@@ -54,6 +54,13 @@ export async function registerRoutes(
     standardHeaders: true,
     legacyHeaders: false,
   });
+
+  const aiLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
   
   const attachUser = async (req: AuthRequest, _res: Response, next: NextFunction) => {
     if (req.session?.userId) {
@@ -291,21 +298,160 @@ export async function registerRoutes(
   // News & sentiment
   app.get("/api/news", stockLimiter, async (req, res) => {
     const category = (req.query.category as string) || "general";
+    const perSourceLimit = Number(req.query.perSource) || 2;
     try {
       const cacheKey = `news:${category}`;
       const data = await fetchFinnhub(`/news?category=${encodeURIComponent(category)}`, cacheKey, 30);
-      // Trim and normalize
-      const articles = (data as any[]).slice(0, 10).map((item) => ({
-        headline: item.headline,
-        summary: item.summary,
-        source: item.source,
-        url: item.url,
-        datetime: item.datetime,
-        image: item.image,
-      }));
+      const seenUrls = new Set<string>();
+      const seenHeadlines = new Set<string>();
+      const sourceCounts = new Map<string, number>();
+      const articles = [];
+
+      // Shuffle to avoid one source dominating due to ordering
+      const shuffled = [...(data as any[])].sort(() => Math.random() - 0.5);
+
+      for (const item of shuffled) {
+        if (!item?.url || !item?.headline) continue;
+        if (seenUrls.has(item.url)) continue;
+        if (seenHeadlines.has(item.headline)) continue;
+        const src = item.source || "Unknown";
+        const count = sourceCounts.get(src) || 0;
+        if (count >= perSourceLimit) continue;
+        sourceCounts.set(src, count + 1);
+        seenUrls.add(item.url);
+        seenHeadlines.add(item.headline);
+        articles.push({
+          headline: item.headline,
+          summary: item.summary,
+          source: src,
+          url: item.url,
+          datetime: item.datetime,
+          image: item.image,
+        });
+        if (articles.length >= 20) break;
+      }
       res.json({ category, articles, updatedAt: new Date().toISOString() });
     } catch (error) {
+      console.error("news fetch failed", error);
       res.status(500).json({ error: "Failed to fetch news" });
+    }
+  });
+
+  const chatSchema = z.object({
+    prompt: z.string().min(4),
+    articleUrl: z.string().url().optional(),
+  });
+
+  async function callKimi(messages: { role: "system" | "user"; content: string }[]) {
+    const apiKey = process.env.KIMI_API_KEY || process.env.KIMI_K2_API_KEY;
+    const model = process.env.KIMI_MODEL || "moonshot-v1-128k";
+    if (!apiKey) {
+      throw new Error("KIMI_API_KEY missing");
+    }
+    const resp = await fetch("https://api.moonshot.cn/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.3,
+        messages,
+      }),
+    });
+    if (!resp.ok) {
+      const body = await resp.text();
+      throw new Error(`Kimi error ${resp.status}: ${body}`);
+    }
+    const data = await resp.json();
+    const message = data?.choices?.[0]?.message?.content;
+    if (!message) throw new Error("Kimi returned no content");
+    return message as string;
+  }
+
+  function detectTickers(text: string) {
+    const matches = text.match(/\b[A-Z]{2,5}\b/g) || [];
+    return Array.from(new Set(matches));
+  }
+
+  async function fetchArticle(url?: string) {
+    if (!url) return null;
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) return null;
+      const text = await resp.text();
+      return text.slice(0, 8000);
+    } catch {
+      return null;
+    }
+  }
+
+  app.post("/api/ai/chat", aiLimiter, async (req: AuthRequest, res) => {
+    try {
+      const { prompt, articleUrl } = chatSchema.parse(req.body);
+
+      const tickers = detectTickers(prompt);
+      const portfolioTickers: string[] = [];
+      if (req.user) {
+        const pf = await storage.getPortfolio(req.user.id);
+        pf.forEach((p) => portfolioTickers.push(p.symbol));
+      }
+      const combinedTickers = Array.from(new Set([...tickers, ...portfolioTickers])).slice(0, 5);
+
+      const sources: any[] = [];
+      const contextParts: string[] = [];
+
+      for (const sym of combinedTickers) {
+        try {
+          const quote = await fetchFinnhub(`/quote?symbol=${sym}`, `ai:quote:${sym}`, 2);
+          contextParts.push(
+            `Quote ${sym}: price ${quote.c}, change ${quote.d} (${quote.dp}%), high ${quote.h}, low ${quote.l}, prev close ${quote.pc}`,
+          );
+          sources.push({ type: "quote", symbol: sym, url: `https://finnhub.io/quote/${sym}` });
+        } catch {
+          // ignore per-symbol failures
+        }
+        try {
+          const from = Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60;
+          const to = Math.floor(Date.now() / 1000);
+          const news = await fetchFinnhub(
+            `/company-news?symbol=${sym}&from=${from}&to=${to}`,
+            `ai:company-news:${sym}`,
+            30,
+          );
+          const trimmed = (news as any[]).slice(0, 3);
+          trimmed.forEach((n) => {
+            contextParts.push(`News ${sym}: ${n.headline} (${n.source}) ${n.summary?.slice(0, 180) || ""}`);
+            sources.push({ type: "news", symbol: sym, url: n.url, source: n.source });
+          });
+        } catch {
+          // ignore
+        }
+      }
+
+      const articleText = await fetchArticle(articleUrl);
+      if (articleText) {
+        contextParts.push(`User provided article content:\n${articleText.slice(0, 4000)}`);
+        sources.push({ type: "article", url: articleUrl });
+      }
+
+      const systemPrompt = `
+You are a concise equity research assistant. Use only the provided context and live Finnhub data. Cite tickers and sources when possible.
+If data is missing, say so; do not fabricate tickers or prices. Avoid personalized financial advice; stick to general insights.
+`;
+
+      const messages = [
+        { role: "system", content: systemPrompt + "\nContext:\n" + contextParts.join("\n") },
+        { role: "user", content: prompt },
+      ] as const;
+
+      const answer = await callKimi(messages as any);
+
+      res.json({ answer, sources, tickers: combinedTickers });
+    } catch (error) {
+      const msg = error instanceof z.ZodError ? "Invalid input" : (error as Error).message;
+      res.status(400).json({ message: msg });
     }
   });
 

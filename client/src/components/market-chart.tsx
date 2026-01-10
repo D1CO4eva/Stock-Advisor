@@ -33,21 +33,21 @@ export default function MarketChart({ symbol, history }: { symbol: string; histo
           <AreaChart data={data}>
             <defs>
               <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(217, 91%, 60%)" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="hsl(217, 91%, 60%)" stopOpacity={0} />
+                <stop offset="5%" stopColor="hsl(var(--color-primary))" stopOpacity={0.28} />
+                <stop offset="95%" stopColor="hsl(var(--color-primary))" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(215, 25%, 27%)" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--color-border))" vertical={false} />
             <XAxis 
               dataKey="date" 
-              stroke="hsl(215, 20%, 65%)" 
+              stroke="hsl(var(--color-muted-foreground))" 
               fontSize={12} 
               tickLine={false} 
               axisLine={false} 
               minTickGap={30}
             />
             <YAxis 
-              stroke="hsl(215, 20%, 65%)" 
+              stroke="hsl(var(--color-muted-foreground))" 
               fontSize={12} 
               tickLine={false} 
               axisLine={false} 
@@ -56,17 +56,17 @@ export default function MarketChart({ symbol, history }: { symbol: string; histo
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: "hsl(222, 47%, 11%)",
-                borderColor: "hsl(215, 25%, 27%)",
+                backgroundColor: "hsl(var(--color-card))",
+                borderColor: "hsl(var(--color-border))",
                 borderRadius: "8px",
                 color: "white",
               }}
-              itemStyle={{ color: "hsl(217, 91%, 60%)" }}
+              itemStyle={{ color: "hsl(var(--color-primary))" }}
             />
             <Area
               type="monotone"
               dataKey="price"
-              stroke="hsl(217, 91%, 60%)"
+              stroke="hsl(var(--color-primary))"
               strokeWidth={2}
               fillOpacity={1}
               fill="url(#colorPrice)"

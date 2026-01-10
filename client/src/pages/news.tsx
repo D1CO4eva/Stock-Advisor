@@ -58,7 +58,7 @@ export default function News() {
                     {article.summary || "No summary provided."}
                   </p>
                   <div className="mt-4 text-xs text-muted-foreground">
-                    {article.source} • {article.datetime ? new Date(article.datetime * 1000).toLocaleString() : "recent"}
+                    {article.source} - {article.datetime ? new Date(article.datetime * 1000).toLocaleString() : "recent"}
                   </div>
                   {article.url && (
                     <div className="mt-2 text-xs">
@@ -76,3 +76,5 @@ export default function News() {
     </Layout>
   );
 }
+
+

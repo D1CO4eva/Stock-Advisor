@@ -8,7 +8,9 @@ import generatedImage from '@assets/generated_images/abstract_futuristic_financi
 
 export default function Dashboard() {
   const { data: stocks, isLoading } = useStockData();
-  const topPicks = stocks?.filter(s => s.recommendation === "Buy").slice(0, 3) || [];
+  const topPicks = (stocks || [])
+    .filter((s) => s.recommendation === "Buy")
+    .sort((a, b) => b.score - a.score);
   
   return (
     <Layout>
@@ -17,7 +19,8 @@ export default function Dashboard() {
         <section className="relative rounded-2xl overflow-hidden border border-border shadow-2xl">
           <div className="absolute inset-0 z-0">
              <img src={generatedImage} alt="Background" className="w-full h-full object-cover opacity-30" />
-             <div className="absolute inset-0 bg-gradient-to-r from-background via-background/90 to-transparent" />
+             <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-background/85 to-background/60" />
+             <div className="absolute inset-y-0 right-0 w-1/3 bg-[radial-gradient(circle_at_20%_20%,hsl(var(--color-accent))/0.25,transparent_55%)]" />
           </div>
           
           <div className="relative z-10 p-8 md:p-12 max-w-2xl">
@@ -55,16 +58,13 @@ export default function Dashboard() {
             <span className="text-sm text-muted-foreground">Based on hybrid analysis score</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {isLoading ? (
-              // Skeletons
-              Array(3).fill(0).map((_, i) => (
-                <Card key={i} className="h-[200px] bg-card/50 animate-pulse border-border" />
-              ))
-            ) : (
-              topPicks.map(stock => (
-                <StockCard key={stock.symbol} stock={stock} />
-              ))
-            )}
+            {isLoading
+              ? Array(3)
+                  .fill(0)
+                  .map((_, i) => (
+                    <Card key={i} className="h-[220px] bg-card/50 animate-pulse border-border" />
+                  ))
+              : topPicks.map((stock) => <StockCard key={stock.symbol} stock={stock} />)}
           </div>
         </section>
 

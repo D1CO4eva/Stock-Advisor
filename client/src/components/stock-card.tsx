@@ -2,15 +2,57 @@ import { Stock } from "@/lib/mock-data";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, TrendingDown, ChevronRight, Activity } from "lucide-react";
+import { TrendingUp, TrendingDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { addToPortfolio } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 export default function StockCard({ stock }: { stock: Stock }) {
   const isPositive = stock.change >= 0;
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const addMutation = useMutation({
+    mutationFn: addToPortfolio,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["portfolio"] });
+      toast({
+        title: "Added to portfolio",
+        description: `${stock.symbol} added with 1.00 share at $${stock.price.toFixed(2)}.`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Unable to add",
+        description: "Please try again in a moment.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleQuickBuy = () => {
+    const input = window.prompt(`How many shares of ${stock.symbol} would you like to buy?`, "1");
+    if (!input) return;
+    const qty = parseFloat(input);
+    if (Number.isNaN(qty) || qty <= 0) {
+      toast({
+        title: "Invalid amount",
+        description: "Please enter a positive number of shares.",
+        variant: "destructive",
+      });
+      return;
+    }
+    addMutation.mutate({
+      symbol: stock.symbol,
+      shares: qty,
+      avgCost: stock.price,
+    });
+  };
 
   return (
-    <Card className="group hover:border-primary/50 transition-all duration-300 bg-card/50 backdrop-blur-sm">
+    <Card className="group hover:border-primary/50 transition-all duration-300 bg-card/60 backdrop-blur-sm">
       <CardHeader className="flex flex-row items-start justify-between pb-2 space-y-0">
         <div>
           <h3 className="font-bold text-xl font-display tracking-tight text-foreground group-hover:text-primary transition-colors">
@@ -32,7 +74,7 @@ export default function StockCard({ stock }: { stock: Stock }) {
       </CardHeader>
       
       <CardContent className="pb-2">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 gap-3">
           <div className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">AI Score</span>
             <div className="flex items-end gap-1">
@@ -47,14 +89,22 @@ export default function StockCard({ stock }: { stock: Stock }) {
           </div>
           
           <div className="flex flex-col items-end gap-2">
-            <Badge variant="outline" className={cn(
-              "border bg-transparent",
-              stock.recommendation === "Buy" ? "border-green-500 text-green-500 bg-green-500/10" :
-              stock.recommendation === "Sell" ? "border-red-500 text-red-500 bg-red-500/10" :
-              "border-yellow-500 text-yellow-500 bg-yellow-500/10"
-            )}>
-              {stock.recommendation}
-            </Badge>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={addMutation.isPending}
+              onClick={handleQuickBuy}
+              className={cn(
+                "min-w-[90px] justify-center",
+                stock.recommendation === "Buy"
+                  ? "bg-success/15 text-success border-success/30 hover:bg-success/25"
+                  : stock.recommendation === "Sell"
+                    ? "bg-destructive/15 text-destructive border-destructive/30 hover:bg-destructive/25"
+                    : "bg-muted/40 text-foreground border-muted/50 hover:bg-muted/60"
+              )}
+            >
+              {addMutation.isPending ? "Adding..." : stock.recommendation}
+            </Button>
           </div>
         </div>
 
